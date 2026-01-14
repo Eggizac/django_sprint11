@@ -1,46 +1,8 @@
-import os
-from pathlib import Path
+from django.shortcuts import render
 
-import pytest
-from django.template import TemplateDoesNotExist
+# Create your views here.
 
-
-@pytest.fixture()
-def urlpatterns(imports_by_full_name):
-    urlpattern_paths = ["pages.urls.urlpatterns", "blog.urls.urlpatterns"]
-    urlpattern_vals = [imports_by_full_name[p] for p in urlpattern_paths]
-    expected_names = [
-        ("about", "rules"),
-        ("index", "post_detail", "category_posts"),
-    ]
-    expected_views = [
-        ("pages.views.about", "pages.views.rules"),
-        ("blog.views.index", "blog.views.post_detail", "blog.views.category_posts"),
-    ]
-    return zip(urlpattern_paths, urlpattern_vals, expected_names, expected_views)
-
-
-@pytest.fixture()
-def settings_app_name():
-    return "blogicum"
-
-
-@pytest.fixture()
-def root_dir():
-    return str(Path(__file__).parent.parent)
-
-
-@pytest.fixture()
-def project_dirname():
-    return "blogicum"
-
-
-@pytest.fixture()
-def posts():
-    return EXPECTED_POSTS
-
-
-EXPECTED_POSTS = [
+posts = [
     {
         "id": 0,
         "location": "Остров отчаянья",
@@ -84,30 +46,38 @@ EXPECTED_POSTS = [
 ]
 
 
-def try_get_url(client, url: str):
-    try:
-        response = client.get(url)
-    except TemplateDoesNotExist as e:
-        raise AssertionError(
-            f"При загрузке страницы по адресу `{url}` возникла ошибка. "
-            "Убедитесь, что указанный для страницы шаблон существует "
-            "и находится в правильной директории."
-        ) from e
-    except TypeError as e:
-        raise AssertionError(
-            f"При загрузке страницы по адресу `{url}` "
-            "возникла ошибка TypeError. "
-            "Убедитесь, что используете Path Converter "
-            "для приведения параметра строки запроса к нужному типу."
-        ) from e
-    except Exception as e:
-        raise AssertionError(
-            f"При попытке загрузки страницы по адресу `{url}` возникла ошибка: {e}"
-        ) from e
-    else:
-        if response.status_code < 300:
-            return response
-        raise AssertionError(
-            f"При попытке загрузки страницы по адресу `{url}` возникла ошибка:"
-            f" {response}"
-        )
+def index(request):
+    months = {
+        "января": 1,
+        "февраля": 2,
+        "марта": 3,
+        "апреля": 4,
+        "мая": 5,
+        "июня": 6,
+        "июля": 7,
+        "августа": 8,
+        "сентября": 9,
+        "октября": 10,
+        "ноября": 11,
+        "декабря": 12,
+    }
+
+    def date_key(post):
+        day, month_str, year = post["date"].split()[:3]  # берём первые 3 слова
+        return int(year), months[month_str], int(day)
+
+    sorted_posts = sorted(posts, key=date_key, reverse=True)
+
+    return render(request, "blog/index.html", {"posts": sorted_posts})
+
+
+def post_detail(request, id):
+    template = "blog/detail.html"
+    context = {"post": posts[id]}
+    return render(request, template, context)
+
+
+def category_posts(request, category_slug):
+    template = "blog/category.html"
+    context = {"category": category_slug}
+    return render(request, template, context)
